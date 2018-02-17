@@ -5,22 +5,32 @@
 #include "MpsHandles.h"
 #include <stdint.h>
 
-
 struct MpsBuffer {
     uint32_t id;
-
-    uint8_t is_external;
-    uint8_t *buffer;
-    uint16_t capacity;
-    uint16_t size;
-    uint16_t offset;
+	
+	uint8_t *buffer;		/* Pointer to the buffer. */
+    uint8_t is_external;	/* Buffer is declared externally i.e. not allocated by MPS. */
+    uint8_t type;			/* Event or Data type. See MPS_BUFFER_TYPE_* below. */
+    uint16_t capacity;		/* Buffer capacity in bytes. */
+    uint16_t size;			/* Current buffer size in bytes. */
+    uint16_t offset;		/* Current offset with respect to the buffer index 0. */
     void    *layer_specific; /* Optional pointer for layer specific data-structures. */
 
-    struct MpsBuffer *next_in_queue;
+    struct MpsBuffer *next_in_queue;	/* Used by MpsQueue for linking. */
 };
 
+/* Buffer-type definitions. */
+/* A buffer containing an event is emitted by the layer itself. Expected
+ * behavior of layers above or below the emitting layer is to pass the buffer along
+ * to the top or bottom layer. */
+#define MPS_BUFFER_TYPE_EVENT	0x01 
+
+/* A buffer containing a packet can be modified by layers as it propagates
+ * through the stack. Layers can add/remove sections of the buffer e.g. a header. */
+#define MPS_BUFFER_TYPE_PACKET	0x02
+
 /* Creates a MspBuffer of given size and sets the layer specific implementation. */
-MpsBufferHandle_t MpsBufferCreate(uint8_t *buffer, uint16_t size, void *layer_specific);
+MpsBufferHandle_t MpsBufferCreate(uint8_t *buffer, uint16_t size, uint8_t type, void *layer_specific);
 
 void MpsBufferDelete(MpsBufferHandle_t buffer);
 
@@ -66,12 +76,15 @@ MpsResult_t MpsBufferExtractBody(MpsBufferHandle_t buffer, uint8_t *data);
  * The trailer offset is adjusted. */
 MpsResult_t MpsBufferExtractTrailer(MpsBufferHandle_t buffer, uint8_t *data, uint16_t size);
 
+uint8_t MpsBufferTypeGet(MpsBufferHandle_t buffer);
 
+/* Write data directly into the buffer */
 uint8_t *MpsBufferWriteDirect(MpsBufferHandle_t buffer, uint16_t offset, uint16_t size);
 
+/* Returns a pointer to the data in the buffer with the current offset taken into account. */
 uint8_t *MpsBufferDataPointerGet(MpsBufferHandle_t buffer);
 
-/* Zeroes the buffer and resets all regions. */
+/* Zeros the buffer and resets all regions. */
 MpsResult_t MpsBufferFlush(MpsBufferHandle_t buffer);
 
 void MpsBufferDump(MpsBufferHandle_t buffer);

@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-MpsBufferHandle_t MpsBufferCreate(uint8_t *buffer, uint16_t size, void *layer_specific)
+MpsBufferHandle_t MpsBufferCreate(uint8_t *buffer, uint16_t size, uint8_t type, void *layer_specific)
 {
     if(size == 0) {
         return NULL;
@@ -29,6 +29,7 @@ MpsBufferHandle_t MpsBufferCreate(uint8_t *buffer, uint16_t size, void *layer_sp
             mps_buf->id = MpsUtilRunTimeHashGenerate();
             mps_buf->size = 0;
             mps_buf->offset = 0;
+			mps_buf->type = type;
         } else {
             MpsFree((void *)mps_buf);
             mps_buf = NULL;
@@ -226,6 +227,16 @@ MpsResult_t MpsBufferExtractBody(MpsBufferHandle_t buffer, uint8_t *data)
     }
 
     return result;
+}
+
+uint8_t MpsBufferTypeGet(MpsBufferHandle_t buffer)
+{
+	uint8_t type = 0x00;
+	if(buffer != NULL) {
+		type = buffer->type;
+	}
+	
+	return type;
 }
 
 
