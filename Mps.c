@@ -159,3 +159,30 @@ uint32_t MpsMemoryUsageHighMarkGet(void)
 {
     return MpsMallocMemoryUsageHighMarkGet();
 }
+
+MpsResult_t MpsRunLoop(MpsHandle_t stack)
+{
+	MpsResult_t result = MPS_RESULT_ERROR;
+#ifdef MPS_CONFIG_RUNLOOP_ORDER_TOP_TO_BOTTOM
+	/* Calls run-loop functions in top to bottom order.  */
+	for (uint8_t i = 0; i < stack->size; i++){
+		if(stack->layers->runloop != NULL) {
+			result = stack->layers->runloop(); /* Call layer's run-loop function. */
+			if(result < MPS_RESULT_OK) { /* If result is any kind of error (< 0). */
+				return result;
+			}	
+		}
+	}
+#else /*MPS_CONFIG_RUNLOOP_CALL_ORDER_BOTTOM_TO_TOP*/
+	/* Calls run-loop functions in bottom to top order.  */
+	for (uint8_t i = (stack->size - 1); i > 0; i--){
+		if(stack->layers->runloop != NULL) {
+			result = stack->layers->runloop(); /* Call layer's run-loop function. */
+			if(result < MPS_RESULT_OK) { /* If result is any kind of error (< 0). */
+				return result;
+			}
+		}
+	}
+#endif
+	return result;
+}

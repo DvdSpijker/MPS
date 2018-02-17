@@ -41,13 +41,20 @@ MpsResult_t MpsStart(MpsHandle_t stack);
 
 MpsResult_t MpsStop(MpsHandle_t stack);
 
+/* Return the current amount of memory in use, in bytes. */
 uint32_t MpsMemoryUsageGet(void);
 
+/* Returns the maximum amount of memory used, in bytes, since the last reset. */
 uint32_t MpsMemoryUsageHighMarkGet(void);
 
+/* Returns the current top layer. */
 MpsLayerHandle_t MpsTopGet(MpsHandle_t stack);
 
+/* Returns the current bottom layer. */
 MpsLayerHandle_t MpsBottomGet(MpsHandle_t stack);
+
+/* Calls all run-loop functions registered by layers. */
+MpsResult_t MpsRunLoop(void);
 
 
 
