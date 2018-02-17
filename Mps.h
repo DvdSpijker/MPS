@@ -20,8 +20,8 @@
 #define MPS_ERROR_TRANSFER        (MPS_ERROR_ID | 0x0004)   /* Error during layer-to-layer buffer transfer. */
 
 struct Mps {
-    MpsQueueHandle_t *queues; /* Series of queues. Dynamically allocated. */
-    uint8_t size;
+    MpsQueueHandle_t *queues;	/* Series of queues. Dynamically allocated at initialization. */
+    uint8_t size;				/* Actual stack size; 0 < size <= MPS_CONFIG_STACK_MAX_SIZE. */
     MpsLayerHandle_t layers[MPS_CONFIG_STACK_MAX_SIZE]; /* Stack layers. */
 };
 
