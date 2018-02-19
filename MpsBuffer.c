@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-MpsBufferHandle_t MpsBufferCreate(uint8_t *buffer, uint16_t size, uint8_t type, void *layer_specific)
+MpsBufferHandle_t MpsBufferCreate(uint8_t *buffer, MpsBufSize_t size, uint8_t type, void *layer_specific)
 {
     if(size == 0) {
         return NULL;
@@ -54,7 +54,7 @@ void MpsBufferDelete(MpsBufferHandle_t buffer)
     return; /* Return ok here. */
 }
 
-MpsBufferHandle_t MpsBufferResize(MpsBufferHandle_t buffer, uint16_t new_size)
+MpsBufferHandle_t MpsBufferResize(MpsBufferHandle_t buffer, MpsBufSize_t new_size)
 {	
 	MpsBufferHandle_t new_buf = NULL;
 	if(!buffer->is_external) { /* Cannot resize if buffer is external. */
@@ -72,13 +72,13 @@ MpsBufferHandle_t MpsBufferResize(MpsBufferHandle_t buffer, uint16_t new_size)
 	return new_buf;
 }
 
-uint16_t MpsBufferSizeGet(MpsBufferHandle_t buffer)
+MpsBufSize_t MpsBufferSizeGet(MpsBufferHandle_t buffer)
 {
     return (buffer->size);
 }
 
 
-MpsResult_t  MpsBufferAddHeader(MpsBufferHandle_t buffer, uint8_t *data, uint16_t size)
+MpsResult_t  MpsBufferAddHeader(MpsBufferHandle_t buffer, uint8_t *data, MpsBufSize_t size)
 {
 
     MpsResult_t result = MPS_RESULT_OK;
@@ -92,7 +92,7 @@ MpsResult_t  MpsBufferAddHeader(MpsBufferHandle_t buffer, uint8_t *data, uint16_
         buffer->offset -= size;
         buffer->size += size;
 
-        uint16_t i;
+        MpsBufSize_t i;
         for(i = 0; i < size; i++) {
             buffer->buffer[i+buffer->offset] = data[i];
         }
@@ -101,7 +101,7 @@ MpsResult_t  MpsBufferAddHeader(MpsBufferHandle_t buffer, uint8_t *data, uint16_
     return result;
 }
 
-MpsResult_t MpsBufferAddTrailer(MpsBufferHandle_t buffer, uint8_t *data, uint16_t size)
+MpsResult_t MpsBufferAddTrailer(MpsBufferHandle_t buffer, uint8_t *data, MpsBufSize_t size)
 {
     MpsResult_t result = MPS_RESULT_OK;
 
@@ -110,10 +110,10 @@ MpsResult_t MpsBufferAddTrailer(MpsBufferHandle_t buffer, uint8_t *data, uint16_
     }
 
     if(result == MPS_RESULT_OK) {
-        uint16_t offset = buffer->size + buffer->offset;
+        MpsBufSize_t offset = buffer->size + buffer->offset;
         buffer->size += size;
 
-        uint16_t i;
+        MpsBufSize_t i;
         for(i = 0; i < size; i++) {
             buffer->buffer[i+offset] = data[i];
         }
@@ -123,9 +123,9 @@ MpsResult_t MpsBufferAddTrailer(MpsBufferHandle_t buffer, uint8_t *data, uint16_
 }
 
 
-void MpsBufferAddBodyWithOffset(MpsBufferHandle_t buffer, uint8_t *data, uint16_t data_offset, uint16_t size, uint16_t body_offset)
+void MpsBufferAddBodyWithOffset(MpsBufferHandle_t buffer, uint8_t *data, MpsBufSize_t data_offset, MpsBufSize_t size, MpsBufSize_t body_offset)
 {
-    uint16_t i;
+    MpsBufSize_t i;
     for(i = 0; i < size; i++) {
         buffer->buffer[i+body_offset] = data[i + data_offset];
     }
@@ -148,7 +148,7 @@ void MpsBufferAddBodyWithOffset(MpsBufferHandle_t buffer, uint8_t *data, uint16_
 
 
 
-MpsResult_t MpsBufferExtractHeader(MpsBufferHandle_t buffer, uint8_t *data, uint16_t size)
+MpsResult_t MpsBufferExtractHeader(MpsBufferHandle_t buffer, uint8_t *data, MpsBufSize_t size)
 {
 
     MpsResult_t result = MPS_RESULT_OK;
@@ -165,7 +165,7 @@ MpsResult_t MpsBufferExtractHeader(MpsBufferHandle_t buffer, uint8_t *data, uint
 
 
     if(result == MPS_RESULT_OK) {
-        uint16_t i;
+        MpsBufSize_t i;
         for (i = 0; (i < size); i++) {
             data[i] = buffer->buffer[buffer->offset + i];
         }
@@ -178,7 +178,7 @@ MpsResult_t MpsBufferExtractHeader(MpsBufferHandle_t buffer, uint8_t *data, uint
     return result;
 }
 
-MpsResult_t MpsBufferExtractTrailer(MpsBufferHandle_t buffer, uint8_t *data, uint16_t size)
+MpsResult_t MpsBufferExtractTrailer(MpsBufferHandle_t buffer, uint8_t *data, MpsBufSize_t size)
 {
     MpsResult_t result = MPS_RESULT_OK;
 
@@ -191,9 +191,9 @@ MpsResult_t MpsBufferExtractTrailer(MpsBufferHandle_t buffer, uint8_t *data, uin
     }
     if(result == MPS_RESULT_OK) {
 
-        uint16_t offset = buffer->offset + (buffer->size - size);
+        MpsBufSize_t offset = buffer->offset + (buffer->size - size);
         buffer->size -= size;
-        uint16_t i;
+        MpsBufSize_t i;
         for (i = 0; (i < size); i++) {
             data[i] = buffer->buffer[offset + i];
         }
@@ -215,7 +215,7 @@ MpsResult_t MpsBufferExtractBody(MpsBufferHandle_t buffer, uint8_t *data)
     /* Extract remaining body. */
     if(result == MPS_RESULT_OK) {
 
-        uint16_t i;
+        MpsBufSize_t i;
         for (i = 0; (i < buffer->size); i++) {
             data[i] = buffer->buffer[buffer->offset + i];
         }
@@ -249,13 +249,13 @@ uint8_t *MpsBufferDataPointerGet(MpsBufferHandle_t buffer)
     return data_ptr;
 }
 
-uint8_t *MpsBufferWriteDirect(MpsBufferHandle_t buffer, uint16_t offset, uint16_t size)
+uint8_t *MpsBufferWriteDirect(MpsBufferHandle_t buffer, MpsBufSize_t offset, MpsBufSize_t size)
 {
     uint8_t *data_ptr = NULL;
     if(buffer->size == 0) {
         buffer->offset = offset;
         buffer->size = size;
-        data_ptr = buffer->buffer;
+        data_ptr = &buffer->buffer[buffer->offset];
     }
     return data_ptr;
 }
@@ -270,8 +270,8 @@ MpsResult_t MpsBufferFlush(MpsBufferHandle_t buffer)
 
     buffer->offset = 0;
     buffer->size = 0;
-
-    for (uint16_t i = 0; i < buffer->capacity; i++) {
+    MpsBufSize_t i = 0;
+    for (; i < buffer->capacity; i++) {
         buffer->buffer[i] = 0;
     }
 
