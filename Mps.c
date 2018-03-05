@@ -160,6 +160,16 @@ uint32_t MpsMemoryUsageHighMarkGet(void)
     return MpsMallocMemoryUsageHighMarkGet();
 }
 
+MpsLayerHandle_t MpsTopGet(MpsHandle_t stack)
+{
+	return (stack != NULL ? stack->layers[0] : NULL);	
+}
+
+MpsLayerHandle_t MpsBottomGet(MpsHandle_t stack)
+{
+	return (stack != NULL ? stack->layers[stack->size - 1] : NULL);	
+}
+
 MpsResult_t MpsRunLoop(MpsHandle_t stack)
 {
 	MpsResult_t result = MPS_RESULT_ERROR;
