@@ -10,7 +10,7 @@ typedef uint32_t MpsPacketDest_t;
 typedef uint32_t MpsPacketSrc_t;
 
 struct MpsPacketField {
-	uint8_t *packet;
+	uint8_t *data;
 	uint16_t size;
 	struct MpsPacketField *next;
 };
