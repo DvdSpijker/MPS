@@ -1,6 +1,6 @@
 
 #include "MpsQueue.h"
-#include "MpsBuffer.h"
+#include "MpsPacket.h"
 #include "MpsMalloc.h"
 
 #include <stdlib.h>
@@ -29,8 +29,8 @@ uint16_t MpsQueueSizeGet(MpsQueueHandle_t queue)
     return queue->size;
 }
 
-/* Adds a MpsBuffer to the tail of the queue. */
-MpsResult_t MpsQueuePush(MpsQueueHandle_t queue, MpsBufferHandle_t buffer)
+/* Adds a MpsPacket to the tail of the queue. */
+MpsResult_t MpsQueuePush(MpsQueueHandle_t queue, MpsPacketHandle_t packet)
 {
     MpsResult_t result = MPS_RESULT_OK;
     
@@ -41,35 +41,35 @@ MpsResult_t MpsQueuePush(MpsQueueHandle_t queue, MpsBufferHandle_t buffer)
     if(result == MPS_RESULT_OK) {
         
         if(queue->size == 0) {
-            queue->head = queue->tail = buffer;
+            queue->head = queue->tail = packet;
             } else {
-            queue->tail->next_in_queue = buffer;
-            queue->tail = buffer;
+            queue->tail->next_in_queue = packet;
+            queue->tail = packet;
         }
-        buffer->next_in_queue = NULL;
+        packet->next_in_queue = NULL;
         queue->size++;
     }
     
     return result;
 }
 
-/* Removes a MpsBuffer from the head the queue. */
-MpsBufferHandle_t MpsQueuePop(MpsQueueHandle_t queue)
+/* Removes a MpsPacket from the head the queue. */
+MpsPacketHandle_t MpsQueuePop(MpsQueueHandle_t queue)
 {
-    MpsBufferHandle_t buffer = NULL;
+    MpsPacketHandle_t packet = NULL;
     
     if(queue->size == 0) {
         return NULL;
         } else if(queue->size == 1) {
-        buffer = queue->head;
+        packet = queue->head;
         queue->head = queue->tail = NULL;
         } else {
-        buffer = queue->head;
-        queue->head = buffer->next_in_queue;
-        buffer->next_in_queue = NULL;
+        packet = queue->head;
+        queue->head = packet->next_in_queue;
+        packet->next_in_queue = NULL;
     }
 
     queue->size--;
 
-    return buffer;
+    return packet;
 }

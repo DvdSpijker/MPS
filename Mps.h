@@ -8,7 +8,7 @@
 #include "MpsHandles.h"
 #include "MpsResult.h"
 #include "MpsUtil.h"
-#include "MpsBuffer.h"
+#include "MpsPacket.h"
 #include "MpsQueue.h"
 #include "MpsLayer.h"
 
@@ -16,8 +16,8 @@
 
 #define MPS_ERROR_NO_BUFFER_SPACE (MPS_ERROR_ID | 0x0001)   /* No buffer space left. */
 #define MPS_ERROR_NO_MEMORY       (MPS_ERROR_ID | 0x0002)   /* No memory left. */
-#define MPS_ERROR_INVALID_COMP    (MPS_ERROR_ID | 0x0003)   /* Invalid buffer composition. */
-#define MPS_ERROR_TRANSFER        (MPS_ERROR_ID | 0x0004)   /* Error during layer-to-layer buffer transfer. */
+#define MPS_ERROR_INVALID_COMP    (MPS_ERROR_ID | 0x0003)   /* Invalid packet composition. */
+#define MPS_ERROR_TRANSFER        (MPS_ERROR_ID | 0x0004)   /* Error during layer-to-layer packet transfer. */
 
 struct Mps {
     MpsQueueHandle_t *queues;	/* Series of queues. Dynamically allocated at initialization. */
@@ -33,7 +33,7 @@ struct Mps {
  * preserved location. */
 MpsResult_t MpsInit(MpsHandle_t stack, uint8_t size);
 
-/* Deletes all buffers, then all queues and de-initializes
+/* Deletes all packets, then all queues and de-initializes
  * the stack layers. */
 MpsResult_t MpsDeinit(MpsHandle_t stack);
 

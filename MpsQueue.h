@@ -7,8 +7,8 @@
 #include <stdint.h>
 
 struct MpsQueue {
-    MpsBufferHandle_t head;
-    MpsBufferHandle_t tail;
+    MpsPacketHandle_t head;
+    MpsPacketHandle_t tail;
     uint16_t size;
 };
 
@@ -21,13 +21,13 @@ void MpsQueueDelete(MpsQueueHandle_t queue);
 /* Returns the size of the queue. */
 uint16_t MpsQueueSizeGet(MpsQueueHandle_t queue);
 
-/* Adds a MpsBuffer to the tail of the queue. */
-MpsResult_t MpsQueuePush(MpsQueueHandle_t queue, MpsBufferHandle_t buffer);
+/* Adds a MpsPacket to the tail of the queue. */
+MpsResult_t MpsQueuePush(MpsQueueHandle_t queue, MpsPacketHandle_t packet);
 
-/* Removes a MpsBuffer from the head the queue. */
-MpsBufferHandle_t MpsQueuePop(MpsQueueHandle_t queue);
+/* Removes a MpsPacket from the head the queue. */
+MpsPacketHandle_t MpsQueuePop(MpsQueueHandle_t queue);
 
-/* TODO: Remove specific buffer from the queue. */
-MpsResult_t MpsQueueRemove(MpsQueueHandle_t queue, MpsBufferHandle_t buffer);
+/* TODO: Remove specific packet from the queue. */
+MpsResult_t MpsQueueRemove(MpsQueueHandle_t queue, MpsPacketHandle_t packet);
 
 #endif

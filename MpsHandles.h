@@ -5,7 +5,7 @@ typedef struct Mps * MpsHandle_t;
 
 typedef struct MpsLayer * MpsLayerHandle_t;
 
-typedef struct MpsBuffer * MpsBufferHandle_t;
+typedef struct MpsPacket * MpsPacketHandle_t;
 
 typedef struct MpsQueue * MpsQueueHandle_t;
 

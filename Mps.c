@@ -79,7 +79,7 @@ MpsResult_t MpsDeinit(MpsHandle_t stack)
         return MPS_RESULT_INVALID_ARG;
     }
 
-    MpsBufferHandle_t buf = NULL;
+    MpsPacketHandle_t packet = NULL;
     uint16_t n_queues = (stack->size-1) * 2;
 
     /* First calls all deinit functions of all layers (if defined).
@@ -97,11 +97,11 @@ MpsResult_t MpsDeinit(MpsHandle_t stack)
 
     for (uint16_t i = 0; i < n_queues; i++) {
         /* Iterate through the queue, then remove all
-        * buffers and delete them. */
+        * packets and delete them. */
         for (uint16_t j = 0; j < stack->queues[i]->size; j++) {
-            buf = MpsQueuePop(stack->queues[i]);
-            if(buf != NULL) {
-                MpsBufferDelete(buf);
+            packet = MpsQueuePop(stack->queues[i]);
+            if(packet != NULL) {
+                MpsPacketDelete(packet);
                 } else {
                 break;
             }

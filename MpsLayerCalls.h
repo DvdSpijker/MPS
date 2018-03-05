@@ -9,10 +9,10 @@ typedef MpsResult_t  (*MpsLayerCallGeneric_t)(void);
 
 typedef uint32_t (*MpsLayerCallTransferRawData_t)(uint8_t *data, uint32_t size);
 
-typedef MpsResult_t (*MpsLayerCallRtxRequest_t)(MpsBufferHandle_t buffer);
+typedef MpsResult_t (*MpsLayerCallRtxRequest_t)(MpsPacketHandle_t packet);
 
-typedef MpsResult_t (*MpsLayerCallLbRequest_t)(MpsBufferHandle_t buffer, MpsLayerHandle_t layer);
+typedef MpsResult_t (*MpsLayerCallLbRequest_t)(MpsPacketHandle_t packet, MpsLayerHandle_t layer);
 
-typedef void (*MpsLayerCallError_t)(MpsLayerHandle_t source_layer, MpsBufferHandle_t buffer, uint16_t error);
+typedef void (*MpsLayerCallError_t)(MpsLayerHandle_t source_layer, MpsPacketHandle_t packet, uint16_t error);
 
 #endif
