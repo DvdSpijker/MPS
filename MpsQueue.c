@@ -39,10 +39,9 @@ MpsResult_t MpsQueuePush(MpsQueueHandle_t queue, MpsPacketHandle_t packet)
     }
     
     if(result == MPS_RESULT_OK) {
-        
         if(queue->size == 0) {
             queue->head = queue->tail = packet;
-            } else {
+		} else {
             queue->tail->next_in_queue = packet;
             queue->tail = packet;
         }
@@ -60,10 +59,10 @@ MpsPacketHandle_t MpsQueuePop(MpsQueueHandle_t queue)
     
     if(queue->size == 0) {
         return NULL;
-        } else if(queue->size == 1) {
+	} else if(queue->size == 1) {
         packet = queue->head;
         queue->head = queue->tail = NULL;
-        } else {
+	} else {
         packet = queue->head;
         queue->head = packet->next_in_queue;
         packet->next_in_queue = NULL;
