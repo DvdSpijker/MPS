@@ -22,7 +22,7 @@
 struct Mps {
     MpsQueueHandle_t *queues;	/* Series of queues. Dynamically allocated at initialization. */
     uint8_t size;				/* Actual stack size; 0 < size <= MPS_CONFIG_STACK_MAX_SIZE. */
-    MpsLayerHandle_t layers[MPS_CONFIG_STACK_MAX_SIZE]; /* Stack layers. */
+    MpsLayerHandle_t layers[MPS_CONFIG_STACK_MAX_SIZE]; /* Stack layers. 0 is the top layer, size-1 is the bottom layer. */
 };
 
 /* Initializes the stack with given size and creates the queues.
