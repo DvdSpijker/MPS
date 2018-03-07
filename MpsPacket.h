@@ -11,8 +11,13 @@ typedef uint32_t MpsPacketSrc_t;
 
 struct MpsPacketField {
 	uint8_t *data;
-	uint16_t size;
+	uint8_t size;
 	struct MpsPacketField *next;
+};
+
+struct MpsPacketFieldList {
+	struct MpsPacketField *head;
+	struct MpsPacketField *tail;	
 };
 
 struct MpsPacket {
@@ -21,12 +26,13 @@ struct MpsPacket {
 	MpsPacketSrc_t src; /* Packet source. */
 	MpsPacketDest_t dest; /* Packet destination. */
 	
-    uint8_t *buffer;		/* Pointer to the packet. */
-    uint8_t is_external;	/* packet is declared externally i.e. not allocated by MPS. */
+	struct MpsPacketFieldList headers_list;
+	struct MpsPacketFieldList trailers_list;
+	
+	uint8_t *payload;
+	MpsPacketSize_t payload_size;
+	MpsPacketSize_t packet_size;
     uint8_t type;		/* Event or Data type. See MPS_PACKET_TYPE_* below. */
-    MpsPacketSize_t capacity;	/* packet capacity in bytes. */
-    MpsPacketSize_t size;		/* Current packet size in bytes. */
-    uint16_t offset;		/* Current offset with respect to the packet index 0. */
     void    *layer_specific; /* Optional pointer for layer specific data-structures. */
 
     struct MpsPacket *next_in_queue;	/* Used by MpsQueue for linking. */
@@ -53,30 +59,33 @@ MpsPacketHandle_t MpsPacketResize(MpsPacketHandle_t packet, MpsPacketSize_t new_
 /* TODO: Returns a copy of the packet. */
 MpsPacketHandle_t MpsPacketCopy(MpsPacketHandle_t packet);
 
+/* Formats the packet into the buffer. */
+MpsResult_t MpsPacketFormat(MpsPacketHandle_t packet, uint8_t *buf);
+
+/* Parses the buffer into the packet. */
+MpsResult_t MpsPacketParse(uint8_t *buf, MpsPacketHandle_t packet);
+
 /* Returns the size of all regions combined. */
 MpsPacketSize_t MpsPacketSizeGet(MpsPacketHandle_t packet);
+
+MpsResult_t MpsPacketPayloadSet(MpsPacketHandle_t packet, uint8_t *data, MpsPacketSize_t size);
+
+MpsPacketSize_t MpsPacketPayloadGet(MpsPacketHandle_t packet, uint8_t *data);
 
 /* Adds data to the header region after merging a possible previous header with the current body.
  * After the operation the header size will be the added header size.
  * Header and body offsets are adjusted. */
 MpsResult_t MpsPacketHeaderAdd(MpsPacketHandle_t packet, uint8_t *data, MpsPacketSize_t size);
 
-
-void MpsPacketBodyAdd(MpsPacketHandle_t packet, uint8_t *data, MpsPacketSize_t size);
-
 /* Adds data to the trailer region after merging a possible previous trailer with the current body.
  * After the operation the trailer size will be the added trailer size.
  * The trailer offset is adjusted. */
 MpsResult_t MpsPacketTrailerAdd(MpsPacketHandle_t packet, uint8_t *data, MpsPacketSize_t size);
 
-/* Adds data to the specified region. Copying from 'data' starts at the 'data_offset'
- * and is copied to the body at the 'body_offset'. */
-void MpsPacketAddBodyWithOffset(MpsPacketHandle_t packet, uint8_t *data, MpsPacketSize_t data_offset, MpsPacketSize_t size, MpsPacketSize_t body_offset);
-
-/* Removes a header of defined size from the current body. After the
+/* Removes a header from the packet. After the
  * operation the header region size will be the removed header size.
  * Header and body offsets are adjusted. */
-MpsResult_t MpsPacketHeaderRemove(MpsPacketHandle_t packet, uint8_t *data, MpsPacketSize_t size);
+uint8_t MpsPacketHeaderRemove(MpsPacketHandle_t packet, uint8_t *data);
 
 /* Removes a body of defined size from the current body. After the
  * operation the body region size will decreased by the removed body size.
@@ -91,11 +100,6 @@ MpsResult_t MpsPacketTrailerRemove(MpsPacketHandle_t packet, uint8_t *data, MpsP
 
 uint8_t MpsPacketTypeGet(MpsPacketHandle_t packet);
 
-/* Write data directly into the packet */
-uint8_t *MpsPacketWriteDirect(MpsPacketHandle_t packet, uint16_t offset, MpsPacketSize_t size);
-
-/* Returns a pointer to the data in the packet with the current offset taken into account. */
-uint8_t *MpsPacketPointerGet(MpsPacketHandle_t packet);
 
 /* Zeros the packet and resets all regions. */
 MpsResult_t MpsPacketFlush(MpsPacketHandle_t packet);

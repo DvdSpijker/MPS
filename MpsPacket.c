@@ -6,6 +6,19 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#define PACKET_FIELD_DATA_OFFSET sizeof(uint8_t)
+#define PACKET_PAYLOAD_SIZE_OFFSET sizeof(uint8_t)
+#define PACKET_PAYLOAD_DATA_OFFSET sizeof(MpsPacketSize_t) + PACKET_PAYLOAD_SIZE_OFFSET
+#define PACKET_PAYLOAD_MARKER 0xFF
+
+struct MpsPacketField *MpsPacketFieldCreate(uint8_t *data, uint8_t size);
+void MpsPacketFieldListInit(struct MpsPacketFieldList *list);
+void MpsPacketFieldLisDestroy(struct MpsPacketFieldList *list);
+void MpsPacketFieldListAddHead(struct MpsPacketFieldList *list, struct MpsPacketField *field);
+void MpsPacketFieldListAddTail(struct MpsPacketFieldList *list, struct MpsPacketField *field);
+struct MpsPacketField *MpsPacketFieldListRemoveHead(struct MpsPacketFieldList *list);
+struct MpsPacketField *MpsPacketFieldListRemoveTail(struct MpsPacketFieldList *list);
+
 MpsPacketHandle_t MpsPacketCreate(uint8_t *buffer, MpsPacketSize_t size, uint8_t type, void *layer_specific)
 {
     if(size == 0) {
@@ -15,25 +28,16 @@ MpsPacketHandle_t MpsPacketCreate(uint8_t *buffer, MpsPacketSize_t size, uint8_t
     struct MpsPacket * packet = (struct MpsPacket *)MpsMalloc(sizeof(struct MpsPacket));
 
     if(packet != NULL) {
-        if(buffer == NULL) {
-            packet->is_external = 0;
-            packet->buffer = (uint8_t *)MpsMalloc(sizeof(uint8_t) * size);
-        } else {
-            packet->is_external = 1;
-            packet->buffer = buffer;
-        }
-        if(packet->buffer != NULL) {
-            packet->capacity = size;
-            packet->layer_specific = layer_specific;
-            packet->next_in_queue = NULL;
-            packet->id = MpsUtilRunTimeHashGenerate();
-            packet->size = 0;
-            packet->offset = 0;
-			packet->type = type;
-        } else {
-            MpsFree((void *)packet);
-            packet = NULL;
-        }
+		MpsPacketFieldListInit(packet->headers_list);
+		MpsPacketFieldListInit(packet->trailers_list);
+		packet->payload = NULL;
+		packet->payload_size = 0;
+		packet->packet_size = 0;
+		packet->dest = packet->src = 0;
+        packet->layer_specific = layer_specific;
+        packet->next_in_queue = NULL;
+        packet->id = MpsUtilRunTimeHashGenerate();
+		packet->type = type; 
     }
 
     return packet;
@@ -45,10 +49,11 @@ void MpsPacketDelete(MpsPacketHandle_t packet)
     if(packet == NULL) {
         return; /* Return error here. */
     }
-
-    if(packet->is_external == 0) {
-        MpsFree(packet->buffer);
-    }
+	MpsPacketFieldListDestroy(packet->headers_list);
+	MpsPacketFieldListDestroy(packet->trailers_list);
+	if(packet->payload != NULL) {
+		MpsFree(packet->payload);
+	}
     MpsFree(packet);
 
     return; /* Return ok here. */
@@ -56,178 +61,165 @@ void MpsPacketDelete(MpsPacketHandle_t packet)
 
 MpsPacketHandle_t MpsPacketResize(MpsPacketHandle_t packet, MpsPacketSize_t new_size)
 {	
-	MpsPacketHandle_t new_packet = NULL;
-	if(!packet->is_external) { /* Cannot resize if packet is external. */
-		/* Create a new packet, copy data and stats, then delete old packet. */
-		new_packet = MpsPacketCreate(NULL, new_size, packet->layer_specific);
-		if(new_packet != NULL) {
-			for(uint16_t i = packet->offset; i < packet->size, i++) {
-				new_packet->buffer[i] = packet->buffer[i];
-			}
-			new_packet->offset = packet->offset;
-			new_packet->size = packet->size;	
-			MpsPacketDelete(packet);
-		}
-	}
-	return new_packet;
 }
 
 MpsPacketSize_t MpsPacketSizeGet(MpsPacketHandle_t packet)
 {
-    return (packet->size);
+    return (packet->packet_size);
 }
 
-
-MpsResult_t  MpsPacketHeaderAdd(MpsPacketHandle_t packet, uint8_t *data, MpsPacketSize_t size)
+void MpsPacketFormat(MpsPacketHandle_t packet, uint8_t *buf)
 {
+	MpsPacketSize_t offset = 0;
+	struct MpsPacketField *field = NULL;
+	
+	do {
+		field = MpsPacketFieldListRemoveHead(packet->headers_list);
+		memcpy(&buf[offset], field->data, field->size);
+		offset += field->size;
+		if(field != NULL) {
+			MpsPacketFieldDelete(field);
+		}
+	} while(field != NULL);
+		
+	memcpy(&buf[offset], packet->payload, packet->payload_size);
+	offset += packet->payload_size;
+	
+	do {
+		field = MpsPacketFieldListRemoveHead(packet->trailers_list);
+		memcpy(&buf[offset], field->data, field->size);
+		offset += field->size;
+		if(field != NULL) {
+			MpsPacketFieldDelete(field);
+		}
+	} while(field != NULL);
+}
 
-    MpsResult_t result = MPS_RESULT_OK;
+MpsResult_t MpsPacketParse(uint8_t *buf, MpsPacketSize_t size, MpsPacketHandle_t packet)
+{
+	MpsResult_t result = MPS_RESULT_OK;
+	
+	struct MpsPacketField *field = NULL;
+	MpsPacketSize_t offset = 0;
+	uint8_t field_size = 0;
+	while(offset < size && buf[offset] != PACKET_PAYLOAD_MARKER) {
+		field_size = buf[offset] - 1;
+		field = MpsPacketFieldCreate(&buf[++offset], field_size);
+		offset += field_size;
+		if(field == NULL) {
+			 result = MPS_RESULT_NO_MEM
+			 break;
+		} 
+		MpsPacketFieldListAddTail(packet->headers_list, field);
+	} 
+	
+	if(result == MPS_RESULT_OK && offset < size) {
+		memcpy(&packet->payload_size, &buf[++offset], sizeof(MpsPacketSize_t));
+		packet->payload_size -= sizeof(MpsPacketSize_t) - sizeof(uint8_t);
+		offset += sizeof(MpsPacketSize_t);
+		memcpy(&packet->payload[offset], buf, packet->payload_size);
+		offset += packet->payload_size
+	}
 
-    if( (size > (packet->capacity - packet->size)) || (size > (packet->offset + 1)) ) {
-        result = MPS_RESULT_NO_SPACE;
-    }
+	while(offset < size) {
+		field_size = buf[offset] - 1;
+		field = MpsPacketFieldCreate(&buf[++offset], field_size);
+		offset += field_size;
+		if(field == NULL) {
+			result = MPS_RESULT_NO_MEM
+			break;
+		}
+		MpsPacketFieldListAddHead(packet->trailers_list, field);
+	}	
+	
+	return result;
+}
 
-    if(result == MPS_RESULT_OK) {
+MpsResult_t MpsPacketPayloadSet(MpsPacketHandle_t packet, uint8_t *data, MpsPacketSize_t size)
+{
+	MpsResult_t result = MPS_RESULT_NO_MEM;
+	uint8_t *payload_buf = MpsMalloc(size+sizeof(MpsPacketSize_t));
+	if(payload_buf != NULL) {
+		packet->payload = payload_buf;
+		packet->payload[0] = PACKET_PAYLOAD_MARKER;
+		memcpy(&packet->payload[PACKET_PAYLOAD_SIZE_OFFSET], &size, sizeof(MpsPacketSize_t));
+		memcpy(&packet->payload[PACKET_PAYLOAD_DATA_OFFSET], data, size);
+		packet->payload_size = size + sizeof(MpsPacketSize_t) + sizeof(uint8_t);
+		packet->packet_size += packet->payload_size;
+	}
+}
 
-        packet->offset -= size;
-        packet->size += size;
+MpsPacketSize_t MpsPacketPayloadGet(MpsPacketHandle_t packet, uint8_t *data)
+{
+	MpsPacketSize_t size = 0;
+	
+	if(packet->payload != NULL) {
+		size = packet->payload_size - sizeof(MpsPacketSize_t);
+		memcpy(data, &packet->payload[PACKET_PAYLOAD_DATA_OFFSET], size);
+		MpsFree(packet->payload);
+		packet->packet_size -= packet->payload_size;
+		packet->payload_size = 0;
+	}	
+	
+	return size;
+}
 
-        MpsPacketSize_t i;
-        for(i = 0; i < size; i++) {
-            packet->buffer[i+packet->offset] = data[i];
-        }
-    }
-
+MpsResult_t MpsPacketHeaderAdd(MpsPacketHandle_t packet, uint8_t *data, MpsPacketSize_t size)
+{
+    MpsResult_t result = MPS_RESULT_NO_MEM;
+	struct MpsPacketField *field = MpsPacketFieldCreate(data, size);
+	if(field != NULL) {
+		MpsPacketFieldListAddHead(packet->headers_list, field);
+		packet->packet_size += field->size;
+		result = MPS_RESULT_OK;
+	}
+	
     return result;
 }
 
 MpsResult_t MpsPacketTrailerAdd(MpsPacketHandle_t packet, uint8_t *data, MpsPacketSize_t size)
 {
-    MpsResult_t result = MPS_RESULT_OK;
-
-    if( (size > (packet->capacity - packet->size)) || (size > packet->capacity - (packet->offset + packet->size))) {
-        result = MPS_RESULT_NO_SPACE;
+    MpsResult_t result = MPS_RESULT_NO_MEM;
+    
+    struct MpsPacketField *field = MpsPacketFieldCreate(data, size);
+    if(field != NULL) {
+	    MpsPacketFieldListAddTail(packet->trailers_list, field);
+	    packet->packet_size += field->size;
+	    result = MPS_RESULT_OK;
     }
-
-    if(result == MPS_RESULT_OK) {
-        MpsPacketSize_t offset = packet->size + packet->offset;
-        packet->size += size;
-
-        MpsPacketSize_t i;
-        for(i = 0; i < size; i++) {
-            packet->buffer[i+offset] = data[i];
-        }
-    }
-
+    
     return result;
 }
 
-
-void MpsPacketAddBodyWithOffset(MpsPacketHandle_t packet, uint8_t *data, MpsPacketSize_t data_offset, MpsPacketSize_t size, MpsPacketSize_t body_offset)
+MpsPacketSize_t MpsPacketHeaderRemove(MpsPacketHandle_t packet, uint8_t *data)
 {
-    MpsPacketSize_t i;
-    for(i = 0; i < size; i++) {
-        packet->buffer[i+body_offset] = data[i + data_offset];
-    }
+	MpsPacketSize_t size = 0;
+	struct MpsPacketField *field = MpsPacketFieldListRemoveHead(packet->headers_list);
+	if(field != NULL) {
+		size = field->size - 1;
+		memcpy(data, &field->data[PACKET_FIELD_DATA_OFFSET], size);
+		packet->packet_size -= field->size;
+		MpsPacketFieldDelete(field);
+	}
+	
+	return size;
+}
 
-    packet->size = size;
-    packet->offset = body_offset;
-
-    //if( (packet->size > 0) ) {
-    //packet->size += size - (body_offset + packet->size);
-    //} else {
-    //packet->size = size;
-    //}
-//
-    //if( (packet->offset > body_offset) || (packet->offset == 0) ) {
-    //packet->offset = body_offset;
-    //}
-
+MpsPacketSize_t MpsPacketTrailerRemove(MpsPacketHandle_t packet, uint8_t *data)
+{
+	MpsPacketSize_t size = 0;
+	struct MpsPacketField *field = MpsPacketFieldListRemoveTail(packet->trailers_list);
+	if(field != NULL) {
+		size = field->size - 1;
+		memcpy(data, &field->data[PACKET_FIELD_DATA_OFFSET], size);
+		packet->packet_size -= field->size;
+		MpsPacketFieldDelete(field);
+	}
+	
+	return size;
 }
 
 
-
-
-MpsResult_t MpsPacketHeaderRemove(MpsPacketHandle_t packet, uint8_t *data, MpsPacketSize_t size)
-{
-
-    MpsResult_t result = MPS_RESULT_OK;
-
-    /* Check input. */
-    if(packet == NULL || data == NULL || size == 0) {
-        result = MPS_RESULT_INVALID_ARG;
-    }
-
-    /* Check size boundaries. */
-    if(size > packet->size) {
-        result = MPS_RESULT_NO_SPACE;
-    }
-
-
-    if(result == MPS_RESULT_OK) {
-        MpsPacketSize_t i;
-        for (i = 0; (i < size); i++) {
-            data[i] = packet->buffer[packet->offset + i];
-        }
-        packet->offset += size;
-        packet->size -= size;
-
-        result = MPS_RESULT_OK;
-    }
-
-    return result;
-}
-
-MpsResult_t MpsPacketTrailerRemove(MpsPacketHandle_t packet, uint8_t *data, MpsPacketSize_t size)
-{
-    MpsResult_t result = MPS_RESULT_OK;
-
-    if(packet == NULL || data == NULL || size == 0) {
-        result = MPS_RESULT_INVALID_ARG;
-    }
-
-    if(size > packet->size) {
-        result = MPS_RESULT_NO_SPACE;
-    }
-    if(result == MPS_RESULT_OK) {
-
-        MpsPacketSize_t offset = packet->offset + (packet->size - size);
-        packet->size -= size;
-        MpsPacketSize_t i;
-        for (i = 0; (i < size); i++) {
-            data[i] = packet->buffer[offset + i];
-        }
-        result = MPS_RESULT_OK;
-    }
-
-    return result;
-
-}
-
-MpsResult_t MpsPacketBodyRemove(MpsPacketHandle_t packet, uint8_t *data)
-{
-    MpsResult_t result = MPS_RESULT_OK;
-
-    if(packet == NULL || data == NULL) {
-        result = MPS_RESULT_INVALID_ARG;
-    }
-
-    /* Extract remaining body. */
-    if(result == MPS_RESULT_OK) {
-
-        MpsPacketSize_t i;
-        for (i = 0; (i < packet->size); i++) {
-            data[i] = packet->buffer[packet->offset + i];
-        }
-
-        packet->offset = 0;
-        packet->size = 0;
-
-        result = MPS_RESULT_OK;
-    }
-
-    return result;
-}
 
 uint8_t MpsPacketTypeGet(MpsPacketHandle_t packet)
 {
@@ -237,27 +229,6 @@ uint8_t MpsPacketTypeGet(MpsPacketHandle_t packet)
 	}
 	
 	return type;
-}
-
-
-uint8_t *MpsPacketPointerGet(MpsPacketHandle_t packet)
-{
-    uint8_t *data_ptr = NULL;
-    if(packet != NULL) {
-        data_ptr = &packet->buffer[packet->offset];
-    }
-    return data_ptr;
-}
-
-uint8_t *MpsPacketWriteDirect(MpsPacketHandle_t packet, MpsPacketSize_t offset, MpsPacketSize_t size)
-{
-    uint8_t *data_ptr = NULL;
-    if(packet->size == 0) {
-        packet->offset = offset;
-        packet->size = size;
-        data_ptr = &packet->buffer[packet->offset];
-    }
-    return data_ptr;
 }
 
 /***** Internal functions *****/
@@ -283,3 +254,104 @@ void MpsPacketDump(MpsPacketHandle_t packet)
     packet->buffer[packet->offset + packet->size] = '\0';
     printf("\npacket:%s", &packet->buffer[packet->offset]);
 }
+
+struct MpsPacketField *MpsPacketFieldCreate(uint8_t *data, uint8_t size)
+{
+	if(size > (0xFF - 2)) {
+		return NULL;
+	}
+	struct MpsPacketField *field = MpsMalloc(sizeof(struct MpsPacketField));
+	if(field != NULL) {
+		field->data = MpsMalloc(size+1);
+		if(field->data != NULL) {
+			field->data[0] = size+1;
+			memcpy(&field->data[PACKET_FIELD_DATA_OFFSET], data, size);
+			field->size = size+1;
+			field->next = NULL;			
+		} else {
+			MpsFree((void *)field);
+		}
+	}
+	return field;
+}
+
+void MpsPacketFieldDelete(struct MpsPacketField *field)
+{
+	if(field->data != NULL) {
+		MpsFree((void *)field->data);
+	}
+	MpsFree((void *)field);
+}
+
+void MpsPacketFieldListInit(struct MpsPacketFieldList *list)
+{
+	list->head = NULL;
+	list->tail = NULL;
+}
+
+void MpsPacketFieldListDestroy(struct MpsPacketFieldList *list)
+{
+	struct MpsPacketField *field = NULL;
+	do {
+		field = MpsPacketFieldListRemoveTail(list);
+		if(field != NULL) {
+			MpsPacketFieldDelete(field);
+		}
+	} while(field != NULL);
+}
+
+void MpsPacketFieldListAddHead(struct MpsPacketFieldList *list, struct MpsPacketField *field)
+{
+	if(list->head == NULL) {
+		list->head = list->tail = field;
+	} else {
+		field->next = list->head;
+		list->head = field;
+	}	
+}
+
+void MpsPacketFieldListAddTail(struct MpsPacketFieldList *list, struct MpsPacketField *field)
+{
+	if(list->head == NULL) {
+		list->head = list->tail = field;
+	} else {
+		list->tail->next = field;
+		list->tail = field;
+	}
+	field->next = NULL;
+}
+
+struct MpsPacketField *MpsPacketFieldListRemoveHead(struct MpsPacketFieldList *list)
+{
+	struct MpsPacketField *field = NULL;
+	
+	if(list->head == NULL) {
+		return NULL;
+	} else if(list->head->next == NULL) {
+		field = list->head;
+		list->head = list->tail = NULL;
+	} else {
+		field = list->head;
+		list->head = field->next;
+		field->next = NULL;
+	}
+	return field;
+}
+
+struct MpsPacketField *MpsPacketFieldListRemoveTail(struct MpsPacketFieldList *list)
+{
+	struct MpsPacketField *field = NULL;
+	
+	if(list->head == NULL) {
+		return NULL;
+	} else if(list->head->next == NULL) {
+		field = list->head;
+		list->head = list->tail = NULL;
+	} else {
+		field = list->head;
+		list->head = field->next;
+		field->next = NULL;
+	}
+	return field;
+}
+
