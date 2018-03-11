@@ -65,7 +65,7 @@ MpsPacketHandle_t MpsPacketCopy(MpsPacketHandle_t packet);
 MpsResult_t MpsPacketFormat(MpsPacketHandle_t packet, uint8_t *buf);
 
 /* Parses the buffer into the packet. */
-MpsResult_t MpsPacketParse(uint8_t *buf, MpsPacketHandle_t packet);
+MpsResult_t MpsPacketParse(uint8_t *buf, MpsPacketSize_t size, MpsPacketHandle_t packet);
 
 /* Returns the size of all regions combined. */
 MpsPacketSize_t MpsPacketSizeGet(MpsPacketHandle_t packet);
@@ -92,7 +92,7 @@ uint8_t MpsPacketHeaderRemove(MpsPacketHandle_t packet, uint8_t *data);
 /* Removes a trailer of defined size from the current body. After the
  * operation the trailer region size will be the removed trailer size.
  * The trailer offset is adjusted. */
-uint8_t MpsPacketTrailerRemove(MpsPacketHandle_t packet, uint8_t *data, MpsPacketSize_t size);
+uint8_t MpsPacketTrailerRemove(MpsPacketHandle_t packet, uint8_t *data);
 
 uint8_t MpsPacketTypeGet(MpsPacketHandle_t packet);
 
