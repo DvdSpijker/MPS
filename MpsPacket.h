@@ -58,7 +58,7 @@ MpsPacketHandle_t MpsPacketCreate(uint8_t type, void *layer_specific);
 
 void MpsPacketDelete(MpsPacketHandle_t packet);
 
-/* TODO: Returns a copy of the packet. */
+/* Returns a copy of the packet. The copy's layer specific pointer will be NULL. */
 MpsPacketHandle_t MpsPacketCopy(MpsPacketHandle_t packet);
 
 /* Formats the packet into the buffer. */
