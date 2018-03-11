@@ -72,3 +72,22 @@ MpsPacketHandle_t MpsQueuePop(MpsQueueHandle_t queue)
 
     return packet;
 }
+
+MpsResult_t MpsQueueRemove(MpsQueueHandle_t queue, MpsPacketHandle_t packet)
+{	
+	MpsResult_t result = MPS_RESULT_ERROR;
+	uint16_t i = 0;
+	MpsPacketHandle_t it_packet = queue->head;
+	MpsPacketHandle_t it_packet_prev = NULL;
+	while(it_packet != packet && it_packet != NULL && i < queue->size) {
+		it_packet_prev = it_packet;
+		it_packet = it_packet->next_in_queue;
+	}
+	
+	if(it_packet == packet) {
+		it_packet_prev->next_in_queue = it_packet->next_in_queue;
+		it_packet->next_in_queue = NULL;
+		MpsResult_t result = MPS_RESULT_OK;
+	}
+	return result;
+}
