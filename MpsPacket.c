@@ -51,34 +51,41 @@ void MpsPacketDelete(MpsPacketHandle_t packet)
 	MpsPacketFieldListDestroy(packet->headers_list);
 	MpsPacketFieldListDestroy(packet->trailers_list);
 	if(packet->payload != NULL) {
-		MpsFree(packet->payload);
+		MpsFree((void **)&packet->payload);
 	}
-    MpsFree(packet);
+	
+    MpsPacketDestroy(packet);
 
     return; /* Return ok here. */
+}
+
+static MpsResult_t MpsPacketDestroy(MpsPacketHandle_t packet)
+{
+	return MpsFree((void **)&packet);
 }
 
 MpsPacketHandle_t MpsPacketCopy(MpsPacketHandle_t packet)
 {
 	MpsResult_t result = MPS_RESULT_ERROR;
 	MpsPacketHandle_t packet_cpy = MpsMalloc(sizeof(struct MpsPacket));
+	
 	if(packet_cpy != NULL) {
 		result = MpsPacketFieldListCopy(packet->headers_list);
 		if(result != MPS_RESULT_OK) {
-			MpsFree((void **)packet_cpy);
+			MpsPacketDestroy(packet_cpy);
 			goto exit;
 		}	
 		result = MpsPacketFieldListCopy(packet->trailers_list);
 		if(result != MPS_RESULT_OK) {
 			MpsPacketFieldListDestroy(packet_cpy->headers_list);
-			MpsFree((void **)packet_cpy);
+			MpsPacketDestroy(packet_cpy);
 			goto exit;
 		}
 		result = MpsPacketPayloadSet(packet_cpy, &packet->payload[PACKET_PAYLOAD_DATA_OFFSET], packet->payload_size);
 		if(result != MPS_RESULT_OK) {
 			MpsPacketFieldListDestroy(packet_cpy->headers_list);
 			MpsPacketFieldListDestroy(packet_cpy->trailers_list);
-			MpsFree((void **)packet_cpy);
+			MpsPacketDestroy(packet_cpy);
 			goto exit;
 		}		
 		packet_cpy->payload_size = packet->payload_size;
@@ -99,7 +106,7 @@ MpsPacketSize_t MpsPacketSizeGet(MpsPacketHandle_t packet)
     return (packet->packet_size);
 }
 
-void MpsPacketFormat(MpsPacketHandle_t packet, uint8_t *buf)
+void MpsPacketSerialize(MpsPacketHandle_t packet, uint8_t *buf)
 {
 	MpsPacketSize_t offset = 0;
 	struct MpsPacketField *field = NULL;
@@ -142,7 +149,7 @@ void MpsPacketFormat(MpsPacketHandle_t packet, uint8_t *buf)
 	} while(field != NULL);
 }
 
-MpsResult_t MpsPacketParse(uint8_t *buf, MpsPacketSize_t size, MpsPacketHandle_t packet)
+MpsResult_t MpsPacketDeserialize(uint8_t *buf, MpsPacketSize_t size, MpsPacketHandle_t packet)
 {
 	MpsResult_t result = MPS_RESULT_OK;
 	
@@ -199,15 +206,20 @@ MpsResult_t MpsPacketParse(uint8_t *buf, MpsPacketSize_t size, MpsPacketHandle_t
 MpsResult_t MpsPacketPayloadSet(MpsPacketHandle_t packet, uint8_t *data, MpsPacketSize_t size)
 {
 	MpsResult_t result = MPS_RESULT_NO_MEM;
-	uint8_t *payload_buf = MpsMalloc(size+sizeof(MpsPacketSize_t));
-	if(payload_buf != NULL) {
-		packet->payload = payload_buf;
-		packet->payload[0] = PACKET_PAYLOAD_MARKER;
-		memcpy(&packet->payload[PACKET_PAYLOAD_SIZE_OFFSET], &size, sizeof(MpsPacketSize_t));
-		memcpy(&packet->payload[PACKET_PAYLOAD_DATA_OFFSET], data, size);
-		packet->payload_size = size + sizeof(MpsPacketSize_t) + sizeof(uint8_t);
-		packet->packet_size += packet->payload_size;
+	
+	if(packet->payload == NULL) {
+		uint8_t *payload_buf = MpsMalloc(size + sizeof(MpsPacketSize_t)+ sizeof(uint8_t));
+		if(payload_buf != NULL) {
+			packet->payload = payload_buf;
+			packet->payload[0] = PACKET_PAYLOAD_MARKER;
+			memcpy(&packet->payload[PACKET_PAYLOAD_SIZE_OFFSET], &size, sizeof(MpsPacketSize_t));
+			memcpy(&packet->payload[PACKET_PAYLOAD_DATA_OFFSET], data, size);
+			packet->payload_size = size + sizeof(MpsPacketSize_t) + sizeof(uint8_t);
+			packet->packet_size += packet->payload_size;
+		}
 	}
+	
+	return result;
 }
 
 MpsPacketSize_t MpsPacketPayloadGet(MpsPacketHandle_t packet, uint8_t *data)
@@ -229,6 +241,7 @@ MpsResult_t MpsPacketHeaderAdd(MpsPacketHandle_t packet, uint8_t *data, uint8_t 
 {
     MpsResult_t result = MPS_RESULT_NO_MEM;
 	struct MpsPacketField *field = MpsPacketFieldCreate(data, size);
+	
 	if(field != NULL) {
 		MpsPacketFieldListAddHead(packet->headers_list, field);
 		packet->packet_size += field->size;
@@ -241,8 +254,8 @@ MpsResult_t MpsPacketHeaderAdd(MpsPacketHandle_t packet, uint8_t *data, uint8_t 
 MpsResult_t MpsPacketTrailerAdd(MpsPacketHandle_t packet, uint8_t *data, uint8_t size)
 {
     MpsResult_t result = MPS_RESULT_NO_MEM;
-    
     struct MpsPacketField *field = MpsPacketFieldCreate(data, size);
+	
     if(field != NULL) {
 	    MpsPacketFieldListAddTail(packet->trailers_list, field);
 	    packet->packet_size += field->size;
@@ -256,6 +269,7 @@ uint8_t MpsPacketHeaderRemove(MpsPacketHandle_t packet, uint8_t *data)
 {
 	MpsPacketSize_t size = 0;
 	struct MpsPacketField *field = MpsPacketFieldListRemoveHead(packet->headers_list);
+	
 	if(field != NULL) {
 		size = field->size - 1;
 		memcpy(data, &field->data[PACKET_FIELD_DATA_OFFSET], size);
@@ -270,6 +284,7 @@ uint8_t MpsPacketTrailerRemove(MpsPacketHandle_t packet, uint8_t *data)
 {
 	uint8_t size = 0;
 	struct MpsPacketField *field = MpsPacketFieldListRemoveTail(packet->trailers_list);
+	
 	if(field != NULL) {
 		size = field->size - 1;
 		memcpy(data, &field->data[PACKET_FIELD_DATA_OFFSET], size);

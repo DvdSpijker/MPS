@@ -61,11 +61,11 @@ void MpsPacketDelete(MpsPacketHandle_t packet);
 /* Returns a copy of the packet. The copy's layer specific pointer will be NULL. */
 MpsPacketHandle_t MpsPacketCopy(MpsPacketHandle_t packet);
 
-/* Formats the packet into the buffer. */
-MpsResult_t MpsPacketFormat(MpsPacketHandle_t packet, uint8_t *buf);
+/* Serializes the packet into the buffer. */
+MpsResult_t MpsPacketSerialize(MpsPacketHandle_t packet, uint8_t *buf);
 
-/* Parses the buffer into the packet. */
-MpsResult_t MpsPacketParse(uint8_t *buf, MpsPacketSize_t size, MpsPacketHandle_t packet);
+/* De-serializes the buffer into the packet. */
+MpsResult_t MpsPacketDeserialize(uint8_t *buf, MpsPacketSize_t size, MpsPacketHandle_t packet);
 
 /* Returns the size of all regions combined. */
 MpsPacketSize_t MpsPacketSizeGet(MpsPacketHandle_t packet);
