@@ -1,6 +1,10 @@
 #ifndef MPS_PACKET_H_
 #define MPS_PACKET_H_
 
+#ifdef __cplusplus 
+extern "C" {
+#endif
+
 #include "MpsResult.h"
 #include "MpsHandles.h"
 #include <stdint.h>
@@ -101,4 +105,9 @@ uint8_t MpsPacketTypeGet(MpsPacketHandle_t packet);
 MpsResult_t MpsPacketFlush(MpsPacketHandle_t packet);
 
 void MpsPacketDump(MpsPacketHandle_t packet);
+
+#ifdef __cplusplus 
+}
+#endif
+
 #endif
