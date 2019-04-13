@@ -15,6 +15,7 @@ MpsResult_t MpsInit(MpsHandle_t stack, uint8_t size)
     stack->size = size;
     MpsMemInit(MPS_CONFIG_MEMORY_SIZE_BYTES);
 
+#ifdef MPS_CONFIG_USE_AUTO_QUEUE_ALLOCATION
     /* Allocate an array of queue handles and create all ((N-1) * 2) queues. */
     uint16_t n_queues = (size-1) * 2;
     stack->queues = (MpsQueueHandle_t *)MpsMemAlloc(sizeof(MpsQueueHandle_t) * n_queues); /* Array of Queue handles. */
@@ -32,39 +33,43 @@ MpsResult_t MpsInit(MpsHandle_t stack, uint8_t size)
             }
 
         }
-
-        /* Attach queues to their respective layers. */
-        if(size > 1) {
-            for (uint8_t k = 0; k < size; k++) {
-                MpsLayerInit(stack->layers[k]);
-                
-                if(k == 0) {
-                    /* Top layer does not have Tx in or Rx out queues. */
-                    stack->layers[k]->layer_above = NULL;
-                    stack->layers[k]->layer_below = stack->layers[k+1];
-                    stack->layers[k]->tx_queue = NULL;
-                    stack->layers[k]->rx_queue = stack->queues[1];
-                } else if (k == size-1) {
-                    /* Bottom layer does not have Tx out or Rx in queues. */
-                    stack->layers[k]->layer_above = stack->layers[k-1];
-                    stack->layers[k]->layer_below = NULL;
-                    stack->layers[k]->tx_queue = stack->queues[k];
-                    stack->layers[k]->rx_queue = NULL;
-                } else {
-                    /* Layers in the middle get all queues. */
-                    stack->layers[k]->layer_above = stack->layers[k-1];
-                    stack->layers[k]->layer_below = stack->layers[k+1];
-                    stack->layers[k]->tx_queue = stack->queues[k-1];
-                    stack->layers[k]->rx_queue = stack->queues[k+2];
-                }
-
-                if(stack->layers[k]->init != NULL) {
-                    stack->layers[k]->init();
-                }
-            }
-        }
-        result = MPS_RESULT_OK;
+    } else {
+        result = MPS_RESULT_NO_MEM; /* Return out of memory error. */
+        goto exit;
     }
+#endif
+
+	if(size > 1) {
+		for (uint8_t k = 0; k < size; k++) {
+			MpsLayerInit(stack->layers[k]);
+#ifdef MPS_CONFIG_USE_AUTO_QUEUE_ALLOCATION
+			/* Attach queues to their respective layers. */
+			if(k == 0) {
+				/* Top layer does not have Tx in or Rx out queues. */
+				stack->layers[k]->layer_above = NULL;
+				stack->layers[k]->layer_below = stack->layers[k+1];
+				stack->layers[k]->tx_queue = NULL;
+				stack->layers[k]->rx_queue = stack->queues[1];
+			} else if (k == size-1) {
+				/* Bottom layer does not have Tx out or Rx in queues. */
+				stack->layers[k]->layer_above = stack->layers[k-1];
+				stack->layers[k]->layer_below = NULL;
+				stack->layers[k]->tx_queue = stack->queues[k];
+				stack->layers[k]->rx_queue = NULL;
+			} else {
+				/* Layers in the middle get all queues. */
+				stack->layers[k]->layer_above = stack->layers[k-1];
+				stack->layers[k]->layer_below = stack->layers[k+1];
+				stack->layers[k]->tx_queue = stack->queues[k-1];
+				stack->layers[k]->rx_queue = stack->queues[k+2];
+			}
+#endif
+			if(stack->layers[k]->init != NULL) {
+				stack->layers[k]->init();
+			}
+		}
+	}
+	result = MPS_RESULT_OK;
 
 
     exit:
@@ -96,18 +101,20 @@ MpsResult_t MpsDeinit(MpsHandle_t stack)
     }
 
     for (uint16_t i = 0; i < n_queues; i++) {
-        /* Iterate through the queue, then remove all
-        * packets and delete them. */
-        for (uint16_t j = 0; j < stack->queues[i]->size; j++) {
-            packet = MpsQueuePop(stack->queues[i]);
-            if(packet != NULL) {
-                MpsPacketDelete(packet);
-                } else {
-                break;
-            }
-        }
+    	if(stack->queues[i] != NULL) {
+			/* Iterate through the queue, then remove all
+			* packets and delete them. */
+			for (uint16_t j = 0; j < stack->queues[i]->size; j++) {
+					packet = MpsQueuePop(stack->queues[i]);
+					if(packet != NULL) {
+						MpsPacketDelete(packet);
+						} else {
+						break;
+					}
+			}
 
-        MpsQueueDelete(stack->queues[i]); /* When the queue is empty delete it. */
+			MpsQueueDelete(stack->queues[i]); /* When the queue is empty delete it. */
+    	}
     }
 
     MpsMemFree((void *)stack->queues); /* Free the queue array. */
