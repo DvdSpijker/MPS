@@ -31,7 +31,7 @@ MpsResult_t MpsQueuePush(MpsQueueHandle_t queue, MpsPacketHandle_t packet);
 /* Removes a MpsPacket from the head the queue. */
 MpsPacketHandle_t MpsQueuePop(MpsQueueHandle_t queue);
 
-/* TODO: Remove specific packet from the queue. */
+/* Removes a specific packet from the queue. */
 MpsResult_t MpsQueueRemove(MpsQueueHandle_t queue, MpsPacketHandle_t packet);
 
 #ifdef __cplusplus 
