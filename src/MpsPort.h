@@ -1,4 +1,4 @@
-#ifdef MPS_PORT_H_
+#ifndef MPS_PORT_H_
 #define MPS_PORT_H_
 
 #ifdef __cplusplus 
