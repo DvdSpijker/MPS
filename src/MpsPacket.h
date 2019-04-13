@@ -7,6 +7,8 @@ extern "C" {
 
 #include "MpsResult.h"
 #include "MpsHandles.h"
+#include "MpsConfig.h"
+
 #include <stdint.h>
 
 typedef uint32_t MpsPacketSize_t;
@@ -21,14 +23,15 @@ struct MpsPacketField {
 
 struct MpsPacketFieldList {
 	struct MpsPacketField *head;
-	struct MpsPacketField *tail;	
+	struct MpsPacketField *tail;
+	uint8_t size;
 };
 
 struct MpsPacket {
     uint32_t id;
-	MpsPacketSrc_t src; /* Packet source. */
-	MpsPacketDest_t dest; /* Packet destination. */
-	MpsPacketSize_t packet_size; /* Total packet size. */
+	MpsPacketSrc_t src;				/**< Packet source. */
+	MpsPacketDest_t dest;			/**< Packet destination. */
+	MpsPacketSize_t packet_size;	/**< Total packet size. */
 	
 	struct MpsPacketFieldList headers_list;
 	struct MpsPacketFieldList trailers_list;
@@ -65,8 +68,15 @@ void MpsPacketDelete(MpsPacketHandle_t packet);
 /* Returns a copy of the packet. The copy's layer specific pointer will be NULL. */
 MpsPacketHandle_t MpsPacketCopy(MpsPacketHandle_t packet);
 
-/* Serializes the packet into the buffer. */
-MpsResult_t MpsPacketSerialize(MpsPacketHandle_t packet, uint8_t *buf);
+/**
+ * Serializes the packet structure into a buffer. The serialize operation may be executed
+ * on a packet multiple times.
+ * @param[in] packet Packet to serialize.
+ * @param[in] buf Serialization buffer.
+ * @param[in] size Buffer size.
+ * @param[out] size Serialized packet size.
+ */
+MpsResult_t MpsPacketSerialize(MpsPacketHandle_t packet, uint8_t *buf, MpsPacketSize_t *size);
 
 /* De-serializes the buffer into the packet. */
 MpsResult_t MpsPacketDeserialize(uint8_t *buf, MpsPacketSize_t size, MpsPacketHandle_t packet);
@@ -74,9 +84,19 @@ MpsResult_t MpsPacketDeserialize(uint8_t *buf, MpsPacketSize_t size, MpsPacketHa
 /* Returns the size of all regions combined. */
 MpsPacketSize_t MpsPacketSizeGet(MpsPacketHandle_t packet);
 
-MpsResult_t MpsPacketPayloadSet(MpsPacketHandle_t packet, uint8_t *data, MpsPacketSize_t size);
+/**
+ * Add the payload to the packet. The payload can only be added once.
+ * @param[in] packet Packet handle.
+ * @param[in] data Payload data.
+ * @param[in] size Payload size.
+ * @retval MPS_RESULT_OK if the payload was added to the packet successfully.
+ * @retval MPS_RESULT_INVALID_ARG if packet = NULL, data = NULL or size = 0.
+ * @retval MPS_RESULT_NO_MEM if memory allocation failed.
+ * @retval MPS_RESULT_INVALID_STATE if this packet already has a payload.
+ */
+MpsResult_t MpsPacketPayloadAdd(MpsPacketHandle_t packet, uint8_t *data, MpsPacketSize_t size);
 
-MpsPacketSize_t MpsPacketPayloadGet(MpsPacketHandle_t packet, uint8_t *data);
+MpsPacketSize_t MpsPacketPayloadRemove(MpsPacketHandle_t packet, uint8_t *data);
 
 /* Adds data to the header region after merging a possible previous header with the current body.
  * After the operation the header size will be the added header size.
