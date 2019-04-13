@@ -45,21 +45,3 @@ uint32_t MpsUtilRunTimeHashGenerate(void)
     
     return hash;
 }
-
-void MpsPacketDump(uint8_t *packet, uint32_t size)
-{
-    for (uint32_t i = 0; i < size; i++) {
-        if(packet[i] == 0) {
-            packet[i] += 48;
-        }
-    }
-
-    packet[size] = '\0';
-    printf("%s", packet);
-    
-    for (uint32_t i = 0; i < size; i++) {
-        if(packet[i] == 48) {
-            packet[i] = 0;
-        }
-    }    
-}

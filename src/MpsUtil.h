@@ -15,12 +15,9 @@ uint32_t MpsUtilRunTimeHoursGet(void);
 
 uint32_t MpsUtilRunTimeMillisGet(void);
 
-/* Generates hash-value using a hashing function
+/* Generates hash-value using MpsUtilHash
  * on the current run-time. */
 uint32_t MpsUtilRunTimeHashGenerate(void);
-
-
-void MpsPacketDump(uint8_t *packet, uint32_t size);
 
 #ifdef __cplusplus 
 }
