@@ -17,7 +17,11 @@ void MpsPortFree(void *ptr)
 
 uint32_t MpsPortTimeMillis(void)
 {
-	return time();
+	time_t t;
+
+	time(&t);
+
+	return (uint32_t)t;
 }
 
 uint32_t MpsPortTimeHours(void)
